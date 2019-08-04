@@ -19,16 +19,16 @@ endif
 
 .PHONY: all libnifvec clean
 
-all: libnifvec native/lib.s
+all: libnif # native/lib.s
 
 
-libnifvec:
+libnif:
 		$(MIX) compile
 
-native/lib.s: native/lib.c
-		$(CC) $(CFLAGS) -c -S -o $@ $^
+# native/lib.s: native/lib.c
+# 		$(CC) $(CFLAGS) -c -S -o $@ $^
 
-priv/libnifvec.so: native/lib.c
+priv/libnif.so: native/lib.c
 		$(CC) $(CFLAGS) -shared $(LDFLAGS) -o $@ $^
 
 clean:

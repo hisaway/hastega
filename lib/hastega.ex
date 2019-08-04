@@ -34,9 +34,25 @@ defmodule Hastega do
   ```
   """
   defmacro defhastega(functions) do
+
+    Generator.init
+
     functions
     |> optimize
     |> Opt.inspect(label: "OPTIMIZE")
+
+    hastegastub
+  end
+
+  def hastegastub do
+    # all_functions()
+    # |> Enum.map(& hd(read_function(&1)))
+    # |> Enum.map(& Hastega.Generator.generate_nif(&1))
+    # |> IO.inspect
+
+    Generator.generate_nif
+
+    # quote do end
   end
 
   # @spec optimize(AST.t()) :: AST.t()
@@ -125,7 +141,9 @@ end
 
 defmodule Hastega.Enum do
   import SumMag
+  import Hastega.Generator
 
+  alias Hastega.Generator
   alias SumMag.Opt
   alias Hastega.Func
 
@@ -191,6 +209,7 @@ defmodule Hastega.Enum do
   def call_nif({:ok, asm}, :map) do
     %{operator: operator, left: left, right: right} = asm
 
+    Generator.register_enum_map_for_binomial_expr(operator, left, right)
   end
 end
 

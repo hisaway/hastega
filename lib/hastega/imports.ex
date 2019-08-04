@@ -1,5 +1,5 @@
 defmodule Hastega.Imports do
-  use Constants
+  # use Constants
 
   @moduledoc """
   Documentation for Hastega.Imports.
