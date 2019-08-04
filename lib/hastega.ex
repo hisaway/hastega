@@ -1,6 +1,15 @@
 defmodule Hastega do
   import SumMag
+  import Hastega.Util
+  import Hastega.Parser
+  require Hastega.Db
+  import Hastega.Db
 
+
+  import Hastega.Generator
+  import SumMag
+
+  alias Hastega.Generator
   alias Hastega.Func
   alias SumMag.Opt
 
@@ -116,12 +125,9 @@ end
 
 defmodule Hastega.Enum do
   import SumMag
-  import NifGenerator
 
   alias SumMag.Opt
   alias Hastega.Func
-
-  defstruct enum: nil, enum_ast: [], inner_func: []
 
   def replace_expr({quoted, :map}) do
     Opt.inspect "Find Enum.map!"
@@ -138,15 +144,9 @@ defmodule Hastega.Enum do
 
   def replace_expr({quoted, :chunk_every}) do
     Opt.inspect "Find Enum.chunk_every"
-
-    {chunk_every, meta} = quoted
-
-    |> SumMag.delete_meta
-    |> Opt.inspect(label: "without meta")
+    {_enum, _, num} = quoted |> Opt.inspect(label: "input")
     
-    chunk_every
-    |> call_nif(:chunk_every)
-
+    call_nif(num, :chunk_every)
   end
 
   def replace_expr({quoted, func}) do
@@ -184,15 +184,13 @@ defmodule Hastega.Enum do
     func
   end
 
-  def call_nif(ast, :chunk_every) do
-    {_enum_chunk_every, num} = ast
-    NifGenerator.generate_enum_chunk_every(num)
+  def call_nif(num, :chunk_every) do
+    Generator.register_enum_chunk_every(num)
   end
 
   def call_nif({:ok, asm}, :map) do
     %{operator: operator, left: left, right: right} = asm
 
-    NifGenerator.generate_enum_map_for_binomial_expr(operator, left, right)
   end
 end
 
@@ -205,13 +203,11 @@ defmodule Hastega.Func do
   end
 
   def enabled_nif?([{:&, _, other}]) do
-    Opt.inspect "This is function."
     other
     |> basic_operator?
   end
 
   def enabled_nif?([{:fn, _, [->: [arg, expr]]}]) do
-    Opt.inspect "This is function, but not supported."
     expr
     |> basic_operator?
   end
