@@ -12,4 +12,9 @@ defmodule SumMag.Opt do
 
     term
   end
+
+  def debug(term) do
+    term
+    |> SumMag.Opt.inspect(label: "debug")
+  end
 end

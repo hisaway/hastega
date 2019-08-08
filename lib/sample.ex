@@ -1,11 +1,12 @@
 defmodule HastegaSample do
   import Hastega
   require Hastega
+
   defhastega do
-    def list_mult_2(list) do
+    def cal(list) do
       list
-      |> Enum.map(& &1 * 2)
-      # |> Enum.map(fn x -> x * 3 end)
+      |> Enum.map(& &1 + 2)
+      |> Enum.map(fn x -> x * 2 end)
     end
 
     def chunk_every(list) do

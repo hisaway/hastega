@@ -1,34 +1,3 @@
-#include<stdbool.h>
-#include<erl_nif.h>
-#include<string.h>
-
-static int load(ErlNifEnv *env, void **priv, ERL_NIF_TERM info);
-static void unload(ErlNifEnv *env, void *priv);
-static int reload(ErlNifEnv *env, void **priv, ERL_NIF_TERM info);
-static int upgrade(ErlNifEnv *env, void **priv, void **old_priv, ERL_NIF_TERM info);
-
-static int
-load(ErlNifEnv *env, void **priv, ERL_NIF_TERM info)
-{
-  return 0;
-}
-
-static void
-unload(ErlNifEnv *env, void *priv)
-{
-}
-
-static int
-reload(ErlNifEnv *env, void **priv, ERL_NIF_TERM info)
-{
-  return 0;
-}
-
-static int
-upgrade(ErlNifEnv *env, void **priv, void **old_priv, ERL_NIF_TERM info)
-{
-  return load(env, priv, info);
-}
 const int fail = 0;
 const int success = 1;
 const int empty = 0;
@@ -302,35 +271,4 @@ enif_get_double_vec_from_number_list(ErlNifEnv *env, ERL_NIF_TERM list, double *
       t = new_t;
     }
   }
-}static ERL_NIF_TERM
-map_mult(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
-{
-  if (__builtin_expect((argc != 1), false)) {
-    return enif_make_badarg(env);
-  }
-  long *vec_long;
-  size_t vec_l;
-  double *vec_double;
-  if (__builtin_expect((enif_get_long_vec_from_list(env, argv[0], &vec_long, &vec_l) == fail), false)) {
-    if (__builtin_expect((enif_get_double_vec_from_list(env, argv[0], &vec_double, &vec_l) == fail), false)) {
-      return enif_make_badarg(env);
-    }
-#pragma clang loop vectorize_width(loop_vectorize_width)
-    for(size_t i = 0; i < vec_l; i++) {
-      vec_double[i] = vec_double[i] * 2;
-    }
-    return enif_make_list_from_double_vec(env, vec_double, vec_l);
-  }
-#pragma clang loop vectorize_width(loop_vectorize_width)
-  for(size_t i = 0; i < vec_l; i++) {
-    vec_long[i] *= 2;
-  }
-  return enif_make_list_from_long_vec(env, vec_long, vec_l);
 }
-static
-ErlNifFunc nif_funcs[] =
-{
-  // {erl_function_name, erl_function_arity, c_function}
-  {"map_mult", 2, map_mult},
-};
-ERL_NIF_INIT(Elixir.HastegaNif, nif_funcs, &load, &reload, &upgrade, &unload)

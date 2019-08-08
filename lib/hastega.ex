@@ -2,14 +2,12 @@ defmodule Hastega do
   import SumMag
   import Hastega.Util
   import Hastega.Parser
-  require Hastega.Db
   import Hastega.Db
-
-
   import Hastega.Generator
   import SumMag
 
   alias Hastega.Generator
+  alias Hastega.Db
   alias Hastega.Func
   alias SumMag.Opt
 
@@ -35,13 +33,17 @@ defmodule Hastega do
   """
   defmacro defhastega(functions) do
 
-    Generator.init
+    Opt.debug __CALLER__
+
+    Db.init
 
     functions
     |> optimize
     |> Opt.inspect(label: "OPTIMIZE")
 
     hastegastub
+
+    functions
   end
 
   def hastegastub do
@@ -50,7 +52,7 @@ defmodule Hastega do
     # |> Enum.map(& Hastega.Generator.generate_nif(&1))
     # |> IO.inspect
 
-    Generator.generate_nif
+    Generator.generate
 
     # quote do end
   end
@@ -141,9 +143,9 @@ end
 
 defmodule Hastega.Enum do
   import SumMag
-  import Hastega.Generator
+  import Hastega.Db
 
-  alias Hastega.Generator
+  alias Hastega.Db
   alias SumMag.Opt
   alias Hastega.Func
 
@@ -203,13 +205,26 @@ defmodule Hastega.Enum do
   end
 
   def call_nif(num, :chunk_every) do
-    Generator.register_enum_chunk_every(num)
+    quote do: HastegaNif.chunk_every(4)
   end
 
   def call_nif({:ok, asm}, :map) do
-    %{operator: operator, left: left, right: right} = asm
+    %{
+        operator: operator,
+        left: left,
+        right: right
+      } = asm
 
-    Generator.register_enum_map_for_binomial_expr(operator, left, right)
+    info = %{
+      module: :enum,
+      function: :map,
+      arg_num: 2,
+      args: [left, right],
+      operators: [operator]
+    }
+
+    Db.register(info)
+    quote do: HastegaNif.enum_map_mult_2
   end
 end
 
@@ -226,7 +241,7 @@ defmodule Hastega.Func do
     |> basic_operator?
   end
 
-  def enabled_nif?([{:fn, _, [->: [arg, expr]]}]) do
+  def enabled_nif?([{:fn, _, [{:->, _, [arg, expr]}]}]) do
     expr
     |> basic_operator?
   end
@@ -238,12 +253,22 @@ defmodule Hastega.Func do
         
   """
   # Anonymous functions with &
-  def basic_operator?({:+, _, [left, right]} = ast) do
-    Opt.inspect "This is basic operator :+, but not supported."
+  def basic_operator?([{:+, _, [left, right]}] = ast) do
+    Opt.inspect "This is basic operator :+"
+
+    if right |> quoted_var? && left |> quoted_var? do
+      Opt.inspect "This is a binomial expression."
+      {:ok, ast |> to_map}
+    end
   end
 
   def basic_operator?([{:-, _, [left, right]}] = ast) do
-    Opt.inspect "This is basic operator :+, but not supported."
+    Opt.inspect "This is basic operator :-"
+
+    if right |> quoted_var? && left |> quoted_var? do
+      Opt.inspect "This is a binomial expression."
+      {:ok, ast |> to_map}
+    end
   end
 
   def basic_operator?([{:*, _, [left, right]}] = ast) do
@@ -256,22 +281,36 @@ defmodule Hastega.Func do
     end
   end
 
-  def basic_operator?({:/, _,[left, right]} = ast) do
-    Opt.inspect "This is basic operator :+, but not supported."
+  def basic_operator?([{:/, _,[left, right]}] = ast) do
+    Opt.inspect "This is basic operator :/, but not supported."
+
+    if right |> quoted_var? && left |> quoted_var? do
+      Opt.inspect "This is a binomial expression."
+      {:ok, ast |> to_map}
+    end
   end
 
   # Anonymous functions with fn 
   def basic_operator?({:+, _,[left, right]} = ast) do
     Opt.inspect "This is basic operator :+, but not supported."
+
+    if right |> quoted_var? && left |> quoted_var? do
+      Opt.inspect "This is a binomial expression."
+      {:ok, ast |> to_map}
+    end
   end
 
   def basic_operator?({:-, _,[left, right]} = ast) do
-    Opt.inspect "This is basic operator :+, but not supported."
+    Opt.inspect "This is basic operator :-"
+    
+    if right |> quoted_var? && left |> quoted_var? do
+      Opt.inspect "This is a binomial expression."
+      {:ok, ast |> to_map}
+    end
   end
 
   def basic_operator?({:*, _,[left, right]} = ast) do
-    ast 
-    |> Opt.inspect(label: "This is basic operator :*. with fn")
+    ast |> Opt.inspect(label: "This is basic operator :*. with fn")
     
     if right |> quoted_var? && left |> quoted_var? do
       Opt.inspect "This is a binomial expression."
@@ -280,7 +319,12 @@ defmodule Hastega.Func do
   end
 
   def basic_operator?({:/, _,[left, right]} = ast) do
-    Opt.inspect "This is basic operator :+, but not supported."
+    Opt.inspect "This is basic operator :/"
+
+    if right |> quoted_var? && left |> quoted_var? do
+      Opt.inspect "This is a binomial expression."
+      {:ok, ast |> to_map}
+    end
   end
 
   defp to_map({atom, _, [left, right]}) do
