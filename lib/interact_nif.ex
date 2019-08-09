@@ -6,5 +6,6 @@ defmodule HastegaNif do
   end
 
   def map_mult(_arg1, _arg2), do: raise "NIF map_mult/2 not implemented"
+  def map_plus(_arg1, _arg2), do: raise "NIF map_plus/2 not implemented"
 
 end

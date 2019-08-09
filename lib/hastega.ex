@@ -32,9 +32,6 @@ defmodule Hastega do
   ```
   """
   defmacro defhastega(functions) do
-
-    Opt.debug __CALLER__
-
     Db.init
 
     functions
@@ -170,7 +167,9 @@ defmodule Hastega.Enum do
   end
 
   def replace_expr({quoted, func}) do
-    Opt.inspect "Sorry, not supported yet."
+    str = Macro.to_string(quoted)
+
+    Opt.inspect "Sorry, #{str} not supported yet."
     quoted
   end
 
@@ -215,16 +214,40 @@ defmodule Hastega.Enum do
         right: right
       } = asm
 
+    func_name = generate_function_name(:map, [operator])
+
     info = %{
       module: :enum,
       function: :map,
+      nif_name: func_name,
       arg_num: 2,
       args: [left, right],
       operators: [operator]
     }
 
     Db.register(info)
-    quote do: HastegaNif.enum_map_mult_2
+
+    func_name = func_name |> String.to_atom
+
+    quote do: HastegaNif.unquote(func_name)
+  end
+
+  defp generate_function_name(func, operator) do
+    ret = operator
+    |> Enum.map(& &1 |> operator_to_string)
+    |> Enum.reduce("", fn x, acc -> acc <> "_#{x}" end)
+
+    Atom.to_string(func) <> ret
+  end
+
+  defp operator_to_string(operator)
+    when operator |> is_atom do
+      case operator do
+        :* -> "mult"
+        :+ -> "plus"
+        :- -> "minus"
+        :/ -> "div"
+      end
   end
 end
 

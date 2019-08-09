@@ -142,6 +142,8 @@ defmodule Hastega.Generator.Native do
     operator = hd operators
     [_captured, arg] = args
 
+    expr = "#{operator}= #{arg}"
+
     """
     static ERL_NIF_TERM
     #{nif_name}(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
@@ -158,13 +160,13 @@ defmodule Hastega.Generator.Native do
         }
     #pragma clang loop vectorize_width(loop_vectorize_width)
         for(size_t i = 0; i < vec_l; i++) {
-          vec_double[i] = vec_double[i] #{operator} #{arg};
+          vec_double[i] #{expr};
         }
         return enif_make_list_from_double_vec(env, vec_double, vec_l);
       }
     #pragma clang loop vectorize_width(loop_vectorize_width)
       for(size_t i = 0; i < vec_l; i++) {
-        vec_long[i] *= 2;
+        vec_long[i] #{expr};
       }
       return enif_make_list_from_long_vec(env, vec_long, vec_l);
     }

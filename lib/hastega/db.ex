@@ -12,64 +12,49 @@ defmodule Hastega.Db do
     |> :ets.new([:set, :public, :named_table])
 
     @table_name
-    |> :ets.insert({:id, 1})
+    |> :ets.insert({:func_num, 1})
   end
 
   def register(info) when 
     info |> is_map do
 
-    # id = get_id |> to_string
+    id = get_func_num
+    key = generate_key(id)
 
-    info = generate_string_function_name(info)
+    update
 
     @table_name
-    |> :ets.insert({:function, info})
+    |> :ets.insert({key, info})
   end
 
   def get_functions do
-    @table_name
-    |> :ets.match({:function, :"$1"})
-  end
-  
-  defp get_id do
-    [id: num] = @table_name |> :ets.lookup(:id)
+    num = get_func_num - 1
 
-    update_id(num)
+    (1..num)
+    |> Enum.map(& &1 |> get_function)
+  end
+
+  def get_function(id) do
+    [func] = @table_name
+    |> :ets.match({generate_key(id), :"$1"})
+
+    func
+  end
+
+  defp generate_key(id) do
+    "function_#{id}" |> String.to_atom
+  end
+
+  defp get_func_num do
+    [func_num: num] = @table_name |> :ets.lookup(:func_num)
 
     num
   end
 
-  defp update_id(id) do
-    @table_name |> :ets.insert({:id, id+1})
+  defp update do
+    id = get_func_num
+    @table_name |> :ets.insert({:func_num, id+1})
   end 
-
-  defp generate_string_function_name(info) do
-     %{
-      module: module,
-      function: func_name,
-      arg_num: num,
-      args: args,
-      operators: operators
-    } = info
-
-    ret = operators
-    |> Enum.map(& &1 |> operator_to_string)
-    |> Enum.reduce("", fn x, acc -> acc <> "_#{x}" end)
-
-    str = Atom.to_string(func_name)
-
-    info |> Map.put_new(:nif_name, str <> ret)
-  end
-
-  defp operator_to_string(operator)
-    when operator |> is_atom do
-      case operator do
-        :* -> "mult"
-        :+ -> "plus"
-        :- -> "minus"
-        :/ -> "div"
-      end
-  end
 
   # def on_load do
   #   case :mnesia.start do
