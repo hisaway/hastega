@@ -34,13 +34,13 @@ defmodule Hastega do
   defmacro defhastega(functions) do
     Db.init
 
-    functions
+    ret = functions
     |> optimize
     |> Opt.inspect(label: "OPTIMIZE")
 
     hastegastub
 
-    functions
+    ret
   end
 
   def hastegastub do
@@ -78,9 +78,8 @@ defmodule Hastega do
     # 式ごとに最適化を行う．パイプでつながったコードは１つの式として扱える
     |> Enum.map(&( 
         &1
-        |> Opt.inspect(label: "original")
         |> Macro.unpipe
-        |> Opt.inspect(label: "unpipe")
+
         # Future code
         # |> fusion_function
 
@@ -103,7 +102,7 @@ defmodule Hastega do
 
   def replace_term({{atom, _, nil}, _pos} = arg) 
     when atom |> is_atom do
-     Opt.inspect("This is a variable")
+     # Opt.inspect("This is a variable")
      arg
   end
 
@@ -133,7 +132,9 @@ defmodule Hastega do
           other -> other
         end)
       end)
-    [ret, nil] = ret |> Opt.inspect(label: "pipe")
+    [ret, nil] = ret 
+    # |> Opt.inspect(label: "pipe")
+    
     ret
   end
 end
@@ -155,7 +156,7 @@ defmodule Hastega.Enum do
 
     anonymous_func
     |> Func.enabled_nif?
-    |> Opt.inspect(label: "enabled?")
+    # |> Opt.inspect(label: "enabled?")
     |> call_nif(:map)
   end
 
@@ -216,12 +217,13 @@ defmodule Hastega.Enum do
 
     func_name = generate_function_name(:map, [operator])
 
+    # plan to fix his data
     info = %{
       module: :enum,
       function: :map,
       nif_name: func_name,
-      arg_num: 2,
-      args: [left, right],
+      arg_num: 1,
+      args: [left, right], 
       operators: [operator]
     }
 
@@ -277,38 +279,38 @@ defmodule Hastega.Func do
   """
   # Anonymous functions with &
   def basic_operator?([{:+, _, [left, right]}] = ast) do
-    Opt.inspect "This is basic operator :+"
+    # Opt.inspect "This is basic operator :+"
 
     if right |> quoted_var? && left |> quoted_var? do
-      Opt.inspect "This is a binomial expression."
+      # Opt.inspect "This is a binomial expression."
       {:ok, ast |> to_map}
     end
   end
 
   def basic_operator?([{:-, _, [left, right]}] = ast) do
-    Opt.inspect "This is basic operator :-"
+    # Opt.inspect "This is basic operator :-"
 
     if right |> quoted_var? && left |> quoted_var? do
-      Opt.inspect "This is a binomial expression."
+      # Opt.inspect "This is a binomial expression."
       {:ok, ast |> to_map}
     end
   end
 
   def basic_operator?([{:*, _, [left, right]}] = ast) do
     ast 
-    |> Opt.inspect(label: "This is basic operator :*. with &")
+    # |> Opt.inspect(label: "This is basic operator :*. with &")
 
     if right |> quoted_var? && left |> quoted_var? do
-      Opt.inspect "This is a binomial expression."
+      # Opt.inspect "This is a binomial expression."
       {:ok, ast |> to_map}
     end
   end
 
   def basic_operator?([{:/, _,[left, right]}] = ast) do
-    Opt.inspect "This is basic operator :/, but not supported."
+    # Opt.inspect "This is basic operator :/, but not supported."
 
     if right |> quoted_var? && left |> quoted_var? do
-      Opt.inspect "This is a binomial expression."
+      # Opt.inspect "This is a binomial expression."
       {:ok, ast |> to_map}
     end
   end
