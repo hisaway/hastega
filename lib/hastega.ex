@@ -83,13 +83,13 @@ defmodule Hastega do
     |> Enum.map(& &1 |> replace_term)
   end
 
-  def replace_term({{atom, _, nil}, _pos} = arg) 
+  defp replace_term({{atom, _, nil}, _pos} = arg) 
     when atom |> is_atom do
      # Opt.inspect("This is a variable")
      arg
   end
 
-  def replace_term({quoted, position}) do
+  defp replace_term({quoted, position}) do
     ret = quoted
     |> Hastega.Enum.replace_expr
 
@@ -123,6 +123,7 @@ defmodule Hastega do
 end
 
 defmodule Hastega.Enum do
+
   import SumMag
   import Hastega.Db
 
@@ -240,18 +241,28 @@ defmodule Hastega.Func do
   import SumMag
   alias SumMag.Opt
 
+  defmodule Env do
+    defstruct operator: [:+, :-, :*, :/]
+  end
+
+  defp supported_operator?(atom) when is_atom(atom) do
+    %Hastega.Func.Env{}.operator
+    |> Enum.find_value(fn x -> x == atom end)
+    |> IO.inspect
+  end
+
   def enabled_nif?([{:&, _, [1]}]) do
     Opt.inspect "This is captured val."
   end
 
   def enabled_nif?([{:&, _, other}]) do
     other
-    |> basic_operator?
+    |> supported?
   end
 
   def enabled_nif?([{:fn, _, [{:->, _, [arg, expr]}]}]) do
     expr
-    |> basic_operator?
+    |> supported?
   end
 
   @doc """
@@ -261,52 +272,20 @@ defmodule Hastega.Func do
         
   """
   # Anonymous functions with &
-  def basic_operator?([{:+, _, [left, right]}] = ast) do
-    if quoted_vars?(left, right) do
+  def supported?([{atom, _, [left, right]}] = ast) do
+    if supported_operator?(atom) && quoted_vars?(left, right) do
       {:ok, ast |> to_map}
-    end
-  end
-
-  def basic_operator?([{:-, _, [left, right]}] = ast) do
-    if quoted_vars?(left, right) do
-      {:ok, ast |> to_map}
-    end
-  end
-
-  def basic_operator?([{:*, _, [left, right]}] = ast) do
-    if quoted_vars?(left, right) do
-      {:ok, ast |> to_map}
-    end
-  end
-
-  def basic_operator?([{:/, _,[left, right]}] = ast) do
-    if quoted_vars?(left, right) do
-      {:ok, ast |> to_map}
+    else
+      {:error, ast}
     end
   end
 
   # Anonymous functions with fn 
-  def basic_operator?({:+, _,[left, right]} = ast) do
-    if quoted_vars?(left, right) do
+  def supported?({atom, _,[left, right]} = ast) do
+    if supported_operator?(atom) && quoted_vars?(left, right) do
       {:ok, ast |> to_map}
-    end
-  end
-
-  def basic_operator?({:-, _,[left, right]} = ast) do
-    if quoted_vars?(left, right) do
-      {:ok, ast |> to_map}
-    end
-  end
-
-  def basic_operator?({:*, _,[left, right]} = ast) do
-    if quoted_vars?(left, right) do
-      {:ok, ast |> to_map}
-    end
-  end
-
-  def basic_operator?({:/, _,[left, right]} = ast) do
-    if quoted_vars?(left, right) do
-     {:ok, ast |> to_map}
+    else
+      {:error, ast}
     end
   end
 
