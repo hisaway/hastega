@@ -311,6 +311,10 @@ defmodule SumMag do
 
   def quoted_var?(other), do: nil
 
+  def quoted_vars?(left, right) do
+    quoted_var?(left) && quoted_var?(right)
+  end
+
   def divide_meta(ast) do
     ast
     |> Macro.prewalk([], fn 
@@ -326,4 +330,15 @@ defmodule SumMag do
       other -> other
     end)
   end
+
+  # @spec map(ast, element -> any))) :: ast
+  def map(ast, func \\ &no_ret/1) when is_function(func) do
+    ast
+    |> melt_block
+    |> Enum.map( func )
+    |> iced_block
+  end
+
+  defp no_ret( ast ), do: ast 
+
 end
