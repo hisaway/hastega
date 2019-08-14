@@ -1,9 +1,7 @@
 defmodule Hastega do
   import SumMag
-  import Hastega.Util
-  import Hastega.Parser
-  import Hastega.Db
-  import Hastega.Generator
+  # import Hastega.Db
+  # import Hastega.Generator
   import SumMag
 
   alias Hastega.Generator
@@ -34,58 +32,35 @@ defmodule Hastega do
   defmacro defhastega(functions) do
     Db.init
 
-    ret = functions
-    |> SumMag.map(&replace_function/1)
-
-    hastegastub
-
-    ret
+    functions
+    |> SumMag.map(& native(&1))
+    |> hastegastub
   end
 
-  def hastegastub do
-    # all_functions()
-    # |> Enum.map(& hd(read_function(&1)))
-    # |> Enum.map(& Hastega.Generator.generate_nif(&1))
-    # |> IO.inspect
-
+  def hastegastub(ret) do
     Generator.generate
-
-    # quote do end
+    ret
   end
 
   @doc """
         iex> 
-
   """
-  def replace_function({:def, meta, [arg_info, process]}) do
-    ret = process 
-    |> SumMag.map(& native/1)
-
-    {:def, meta, [arg_info, ret]}
-  end
-
-  def replace_function(other), do: raise "syntax error"
-
-  defp native(expr) when is_tuple(expr) do
+  defp native(expr) when is_list(expr) do
     expr
-    |> Macro.unpipe
+    |> Opt.inspect(label: "native")
     |> to_nif
     
-    # Future code
+    # This is proto-type
     # |> fusion_function
-    
-    |> pipe
   end
 
   def to_nif(expr) when is_list(expr) do
     expr
-    |> Opt.inspect(label: "to nif")
     |> Enum.map(& &1 |> replace_term)
   end
 
   defp replace_term({{atom, _, nil}, _pos} = arg) 
     when atom |> is_atom do
-     # Opt.inspect("This is a variable")
      arg
   end
 
@@ -96,30 +71,6 @@ defmodule Hastega do
     {ret, position}
   end
 
-  defp pipe(unpipe_list) do
-    pipe_meta = [context: Elixir, import: Kernel]
-
-    {arg, 0} = hd unpipe_list
-    func = tl unpipe_list
-
-    acc = {:|>, [], [arg, nil] }
-
-    {:|>, [], ret} = func
-    |> Enum.reduce(acc, 
-      fn x, acc -> 
-        {func, 0} = x
-
-        acc
-        |> Macro.prewalk( fn 
-          {:|>, [], [left, nil]} -> {:|>, [], [{:|>, pipe_meta, [left, func]}, nil]}
-          other -> other
-        end)
-      end)
-    [ret, nil] = ret 
-    # |> Opt.inspect(label: "pipe")
-    
-    ret
-  end
 end
 
 defmodule Hastega.Enum do
@@ -140,7 +91,6 @@ defmodule Hastega.Enum do
 
     anonymous_func
     |> Func.enabled_nif?
-    # |> Opt.inspect(label: "enabled?")
     |> call_nif(:map)
   end
 
@@ -271,7 +221,7 @@ defmodule Hastega.Func do
         iex> (quote do: 1 + 2) |> basic_opetator?
         
   """
-  # Anonymous functions with &
+  # Anonymous functions by &
   def supported?([{atom, _, [left, right]}] = ast) do
     if supported_operator?(atom) && quoted_vars?(left, right) do
       {:ok, ast |> to_map}
@@ -280,7 +230,7 @@ defmodule Hastega.Func do
     end
   end
 
-  # Anonymous functions with fn 
+  # Anonymous functions by fn 
   def supported?({atom, _,[left, right]} = ast) do
     if supported_operator?(atom) && quoted_vars?(left, right) do
       {:ok, ast |> to_map}

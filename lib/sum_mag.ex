@@ -237,9 +237,90 @@ defmodule SumMag do
   def melt_block([ do: { :__block__, [], []    } ]), do: []
   def melt_block([ do: { :__block__, [], funcs } ]), do: funcs
   def melt_block([ do: func]), do: [func] 
+  def melt_block(other), do: other
 
-  def iced_block([func]), do: [ do: func]
-  def iced_block(funcs), do: [ do: { :__block__, [], funcs } ]
+  defp iced_block([func]), do: [ do: func]
+  defp iced_block(funcs), do: [ do: { :__block__, [], funcs } ]
+
+  # @spec map(ast, element -> any))) :: ast
+  def map(definitions, optimizer \\ &no_ret/1) when is_function(optimizer) do
+    definitions
+    |> melt_block
+    |> Enum.map( & &1 |> optimize_func( optimizer ) )
+    |> iced_block
+  end
+
+  defp optimize_func( {:def, meta, [arg_info, exprs]} = definition, optimizer \\ &no_ret/1) do
+    ret = exprs
+      |> melt_block
+      |> Enum.map( & apply_optimizer(&1, optimizer) )
+      |> iced_block
+
+    {:def, meta, [arg_info, ret]}
+  end
+
+  defp apply_optimizer( expr, optimizer \\ &no_ret/1 ) do
+    expr
+    |> Macro.unpipe
+    |> optimizer.()
+    |> pipe
+  end
+
+  defp pipe(unpipe_list) do
+    pipe_meta = [context: Elixir, import: Kernel]
+
+    {arg, 0} = hd unpipe_list
+    func = tl unpipe_list
+
+    acc = {:|>, [], [arg, nil] }
+
+    {:|>, [], ret} = func
+    |> Enum.reduce(acc, 
+      fn x, acc -> 
+        {func, 0} = x
+
+        acc
+        |> Macro.prewalk( fn 
+          {:|>, [], [left, nil]} -> {:|>, [], [{:|>, pipe_meta, [left, func]}, nil]}
+          other -> other
+        end)
+      end)
+    [ret, nil] = ret 
+    
+    ret
+  end
+
+  # defp map_block_keyword(definitions, func \\ &no_ret/1) when is_function(func) do
+  #   definitions
+  #   |> melt_block # many definition function
+  #   |> map_def( func ) # apply optimizer to each def 
+  #   |> iced_block
+  # end
+
+  # defp map1(expressions, func \\ &no_ret/1) when is_function(func) do
+  #   ret = expressions
+  #   |> Enum.map( func )
+  #   |> 
+
+
+  #   ret
+  # end
+
+  # def apply_func({:def, meta, [arg_info, process]}, func \\ &no_ret/1) when is_function(func) do
+  #   ret = process
+  #   |> map_block_keyword
+  # end
+
+  # def replace_function({:def, meta, [arg_info, process]}) do
+  #   ret = process 
+  #   |> SumMag.map(& native/1)
+
+  #   {:def, meta, [arg_info, ret]}
+  # end
+
+  defp no_ret( ast ), do: ast 
+
+  # def replace_function(_), do: raise "syntax error"
 
   # ASTを再帰的に走査して，パイプライン演算子のネストを検知する\n
   # 最低2個連なっていれば，Map/Map Fusionを試みる\n
@@ -330,15 +411,4 @@ defmodule SumMag do
       other -> other
     end)
   end
-
-  # @spec map(ast, element -> any))) :: ast
-  def map(ast, func \\ &no_ret/1) when is_function(func) do
-    ast
-    |> melt_block
-    |> Enum.map( func )
-    |> iced_block
-  end
-
-  defp no_ret( ast ), do: ast 
-
 end
